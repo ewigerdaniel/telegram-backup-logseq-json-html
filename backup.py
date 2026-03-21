@@ -24,7 +24,33 @@ from telethon.tl.types import (
 import config
 from exporters.html_exporter import HtmlExporter
 from exporters.json_exporter import JsonExporter
-from exporters.logseq_exporter import LogseqExporter
+from exporters.logseq_exporter import LogseqExporter, build_page_name, sanitize_page_name
+
+
+MENTION_RE = re.compile(r'\[([^\]]+)\]\(tg://user\?id=(\d+)\)')
+
+
+async def resolve_mentions(client, text):
+    """Ersetzt [Name](tg://user?id=XXX) durch [[Name @username]] für Logseq."""
+    if not text or 'tg://user' not in text:
+        return text
+
+    parts = []
+    offset = 0
+    for match in MENTION_RE.finditer(text):
+        parts.append(text[offset:match.start()])
+        display_name = match.group(1)
+        user_id = int(match.group(2))
+        try:
+            user = await client.get_entity(user_id)
+            name = f"{user.first_name or ''} {user.last_name or ''}".strip() or display_name
+            page_name = build_page_name(name, user.username)
+        except Exception:
+            page_name = sanitize_page_name(display_name)
+        parts.append(f"[[{page_name}]]")
+        offset = match.end()
+    parts.append(text[offset:])
+    return ''.join(parts)
 
 
 # ── Hilfsfunktionen ──────────────────────────────────────────────────────────
@@ -212,12 +238,14 @@ async def process_message(client, message, entity, assets_chat_dir):
         fwd = message.fwd_from
         forwarded_from = getattr(fwd, 'from_name', None)
 
+    text = await resolve_mentions(client, message.text or "")
+
     return {
         "id": message.id,
         "date": message.date.isoformat(),
         "sender_name": sender_name,
         "sender_username": sender_username,
-        "text": message.text or "",
+        "text": text,
         "media": media_info,
         "reply_to_id": message.reply_to_msg_id if message.reply_to else None,
         "forwarded_from": forwarded_from,

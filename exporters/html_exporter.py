@@ -10,11 +10,12 @@ URL_RE = re.compile(r'(https?://[^\s<>"\']+)')
 
 
 def autolink(text):
-    """Wandelt URLs im Text in klickbare Links um."""
+    """Wandelt URLs im Text in klickbare Links um; entfernt Logseq-[[...]]-Syntax."""
+    text = re.sub(r'\[\[([^\]]+)\]\]', r'\1', str(text))
     def replace(m):
         url = m.group(1)
         return f'<a href="{url}" target="_blank" rel="noopener">{url}</a>'
-    return Markup(URL_RE.sub(replace, str(text)))
+    return Markup(URL_RE.sub(replace, text))
 
 
 def file_uri(path):
