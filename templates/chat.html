@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ chat_name }}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #17212b;
+      color: #e8e8e8;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      position: sticky;
+      top: 0;
+      background: #232e3c;
+      padding: 14px 20px;
+      border-bottom: 1px solid #0f1923;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-avatar {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: #2b5278;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 600; color: #fff; flex-shrink: 0;
+    }
+    .header-info h1 { font-size: 16px; font-weight: 600; }
+    .header-info p  { font-size: 13px; color: #708499; margin-top: 2px; }
+
+    /* Messages area */
+    .messages {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px 12px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    /* Date divider */
+    .date-divider {
+      text-align: center;
+      margin: 12px 0 6px;
+    }
+    .date-divider span {
+      background: #232e3c;
+      color: #708499;
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 14px;
+      border: 1px solid #2b3d51;
+    }
+
+    /* Message bubble */
+    .msg {
+      display: flex;
+      flex-direction: column;
+      max-width: 72%;
+    }
+    .msg.incoming { align-self: flex-start; }
+    .msg.outgoing { align-self: flex-end; }
+
+    .bubble {
+      padding: 8px 12px;
+      border-radius: 12px;
+      position: relative;
+      word-break: break-word;
+    }
+    .msg.incoming .bubble {
+      background: #232e3c;
+      border-bottom-left-radius: 4px;
+    }
+    .msg.outgoing .bubble {
+      background: #2b5278;
+      border-bottom-right-radius: 4px;
+    }
+
+    .sender {
+      font-size: 13px;
+      font-weight: 600;
+      color: #5b9bd5;
+      margin-bottom: 4px;
+    }
+
+    .text {
+      font-size: 14.5px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+
+    .meta {
+      font-size: 11px;
+      color: #708499;
+      text-align: right;
+      margin-top: 4px;
+    }
+
+    /* Reply */
+    .reply-ref {
+      border-left: 3px solid #5b9bd5;
+      padding: 3px 8px;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: #708499;
+      background: rgba(255,255,255,0.04);
+      border-radius: 0 4px 4px 0;
+    }
+    .reply-ref a { color: #5b9bd5; text-decoration: none; }
+    .reply-ref a:hover { text-decoration: underline; }
+
+    /* Forward */
+    .fwd-badge {
+      font-size: 12px;
+      color: #4cb866;
+      margin-bottom: 4px;
+    }
+
+    /* Media */
+    .media { margin: 6px 0; }
+    .media img {
+      max-width: 100%;
+      max-height: 320px;
+      border-radius: 8px;
+      display: block;
+      cursor: pointer;
+    }
+    .media img:hover { opacity: 0.9; }
+
+    audio {
+      width: 100%;
+      max-width: 280px;
+      height: 36px;
+      border-radius: 20px;
+      display: block;
+    }
+
+    .media-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 6px 12px;
+      text-decoration: none;
+      color: #e8e8e8;
+      font-size: 13px;
+      transition: background 0.15s;
+    }
+    .media-link:hover { background: rgba(255,255,255,0.12); }
+
+    .text a { color: #5b9bd5; text-decoration: none; }
+    .text a:hover { text-decoration: underline; }
+
+    .sticker img { max-width: 128px; max-height: 128px; }
+
+    /* Lightbox */
+    #lightbox {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-avatar">{{ chat_name[0] | upper }}</div>
+  <div class="header-info">
+    <h1>{{ chat_name }}</h1>
+    <p>{{ messages | length }} Nachrichten</p>
+  </div>
+</div>
+
+<div class="messages">
+  {% set ns = namespace(current_date="") %}
+  {% for msg in messages %}
+
+    {# Date divider #}
+    {% set msg_date = msg.date[:10] %}
+    {% if msg_date != ns.current_date %}
+      {% set ns.current_date = msg_date %}
+      <div class="date-divider"><span>{{ msg_date }}</span></div>
+    {% endif %}
+
+    <div class="msg incoming" id="msg-{{ msg.id }}">
+      <div class="bubble">
+
+        <div class="sender">{{ msg.sender_name }}</div>
+
+        {% if msg.forwarded_from %}
+          <div class="fwd-badge">↩ Weitergeleitet von {{ msg.forwarded_from }}</div>
+        {% endif %}
+
+        {% if msg.reply_to_id %}
+          <div class="reply-ref">
+            <a href="#msg-{{ msg.reply_to_id }}">↩ Antwort auf #{{ msg.reply_to_id }}</a>
+          </div>
+        {% endif %}
+
+        {% if msg.media %}
+          {% set m = msg.media %}
+          <div class="media">
+            {% if m.type == "photo" and m.local_path %}
+              <img src="{{ m.local_path | file_uri }}" alt="Foto" loading="lazy"
+                   onclick="openLightbox(this.src)">
+
+            {% elif m.type == "voice" and m.local_path %}
+              🎤 <audio controls src="{{ m.local_path | file_uri }}"></audio>
+
+            {% elif m.type == "sticker" and m.local_path %}
+              <div class="sticker"><img src="{{ m.local_path | file_uri }}" alt="Sticker" loading="lazy"></div>
+
+            {% elif m.type == "document" and m.local_path %}
+              <a class="media-link" href="{{ m.local_path | file_uri }}">
+                📄 Dokument herunterladen
+              </a>
+
+            {% elif m.telegram_link %}
+              <a class="media-link" href="{{ m.telegram_link }}" target="_blank" rel="noopener">
+                {% if m.type == "video" %}🎥 Video auf Telegram
+                {% elif m.type == "audio" %}🎵 Musik auf Telegram
+                {% else %}📎 Auf Telegram öffnen
+                {% endif %}
+              </a>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        {% if msg.text %}
+          <div class="text">{{ msg.text | autolink }}</div>
+        {% endif %}
+
+        <div class="meta">{{ msg.date[11:16] }}</div>
+      </div>
+    </div>
+
+  {% endfor %}
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<script>
+  function openLightbox(src) {
+    document.getElementById('lightbox-img').src = src;
+    document.getElementById('lightbox').classList.add('open');
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeLightbox();
+  });
+</script>
+
+</body>
+</html>

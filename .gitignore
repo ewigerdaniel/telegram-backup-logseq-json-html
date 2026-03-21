@@ -1,0 +1,20 @@
+# Credentials
+.env
+
+# Claude Code
+.claude/
+
+# Telethon session
+session/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Backups (data, not code)
+backups/
