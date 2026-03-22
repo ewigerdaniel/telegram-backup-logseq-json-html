@@ -220,10 +220,15 @@ async def process_message(client, message, entity, assets_chat_dir):
     if media_type:
         if should_download(media_type):
             local_path = await download_media(client, message, media_type, assets_chat_dir)
+            # Fallback: wenn Download fehlschlägt, Telegram-Link speichern
+            if local_path is None:
+                link = make_fwd_link(message.fwd_from) or make_telegram_link(entity, message.id)
+            else:
+                link = None
             media_info = {
                 "type": media_type,
                 "local_path": local_path,
-                "telegram_link": None,
+                "telegram_link": link,
             }
         else:
             link = make_fwd_link(message.fwd_from) or make_telegram_link(entity, message.id)
@@ -238,6 +243,16 @@ async def process_message(client, message, entity, assets_chat_dir):
     if message.fwd_from:
         fwd = message.fwd_from
         forwarded_from = getattr(fwd, 'from_name', None)
+        if not forwarded_from and getattr(fwd, 'from_id', None):
+            try:
+                from_entity = await client.get_entity(fwd.from_id)
+                if isinstance(from_entity, User):
+                    name = f"{from_entity.first_name or ''} {from_entity.last_name or ''}".strip()
+                    forwarded_from = name or from_entity.username or str(from_entity.id)
+                else:
+                    forwarded_from = getattr(from_entity, 'title', None) or str(from_entity.id)
+            except Exception:
+                pass
 
     text = await resolve_mentions(client, message.text or "")
 
