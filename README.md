@@ -164,6 +164,7 @@ Das Manifest verhindert Duplikate — ohne es werden alle Nachrichten neu export
 | `WHITELIST` | `[]` | Nur diese Chat-IDs sichern (leer = alle) |
 | `BLACKLIST` | `[]` | Diese Chat-IDs immer überspringen |
 | `SKIP_MEDIA_TYPES` | `["video", "audio"]` | Medientypen ohne Download (Telegram-Link statt Datei) |
+| `MAX_DOWNLOAD_SIZE_MB` | `1` | Maximale Dateigröße für Downloads in MB (gilt für Dokumente/Audio/Sticker; `None` = kein Limit) |
 | `EXPORT_FORMATS` | `["html", "logseq"]` | Aktive Exportformate |
 | `LOGSEQ_DATE_FORMAT` | `"%Y_%m_%d"` | Dateinamensformat für Journal-Einträge |
 | `LOGSEQ_JOURNAL_DIR` | `None` | Logseq-Journals-Pfad (None = `backups/logseq-telegram/journals`) |
@@ -209,14 +210,20 @@ SKIP_MEDIA_TYPES = ["video", "audio"]
 |-----|-------------------|-------------|
 | Fotos | Download | `media/photos/` |
 | Sprachnachrichten | Download | `media/voice/` |
-| Dokumente / PDFs | Download | `media/documents/` |
-| Sticker | Download | `media/stickers/` |
+| Dokumente / PDFs | Download wenn ≤ `MAX_DOWNLOAD_SIZE_MB` | `media/documents/` |
+| Sticker | Download wenn ≤ `MAX_DOWNLOAD_SIZE_MB` | `media/stickers/` |
 | Videos | **kein Download** → Telegram-Link | — |
 | Musik / Audio | **kein Download** → Telegram-Link | — |
 
 Für nicht heruntergeladene Medien wird der direkte Telegram-Link zur Originalnachricht gespeichert.
 Bei weitergeleiteten Nachrichten zeigt der Link auf die Originalquelle.
 Für private 1:1-Chats ohne öffentliche URL wird kein Link gespeichert.
+
+**Alles herunterladen (inkl. Videos, ohne Größenlimit):**
+```python
+SKIP_MEDIA_TYPES = []
+MAX_DOWNLOAD_SIZE_MB = None
+```
 
 ### Exportformate
 

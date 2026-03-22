@@ -150,6 +150,18 @@ def should_download(media_type):
     return media_type not in config.SKIP_MEDIA_TYPES
 
 
+def is_within_size_limit(message):
+    """Prüft ob die Datei das konfigurierte Größenlimit einhält."""
+    if config.MAX_DOWNLOAD_SIZE_MB is None:
+        return True
+    if not isinstance(message.media, MessageMediaDocument):
+        return True  # Fotos haben kein Limit
+    doc = message.media.document
+    if doc is None or not hasattr(doc, 'size'):
+        return True
+    return doc.size <= config.MAX_DOWNLOAD_SIZE_MB * 1024 * 1024
+
+
 # ── Media-Download ───────────────────────────────────────────────────────────
 
 async def download_media(client, message, media_type, assets_chat_dir):
@@ -218,7 +230,7 @@ async def process_message(client, message, entity, assets_chat_dir):
     media_info = None
     media_type = classify_media(message)
     if media_type:
-        if should_download(media_type):
+        if should_download(media_type) and is_within_size_limit(message):
             local_path = await download_media(client, message, media_type, assets_chat_dir)
             # Fallback: wenn Download fehlschlägt, Telegram-Link speichern
             if local_path is None:

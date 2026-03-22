@@ -33,6 +33,11 @@ BLACKLIST: list[int] = [
 # stattdessen wird der Telegram-Link gespeichert.
 SKIP_MEDIA_TYPES = ["video", "audio"]
 
+# Maximale Dateigröße für den Download in MB (gilt für Dokumente, Audio, Sticker).
+# Dateien die größer sind, werden verlinkt statt heruntergeladen.
+# None = kein Limit (alles herunterladen, auch große Dateien und Videos)
+MAX_DOWNLOAD_SIZE_MB = 1
+
 # ── Output ──────────────────────────────────────────────────────────────────
 BACKUP_DIR = "backups"
 
