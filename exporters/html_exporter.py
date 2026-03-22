@@ -1,3 +1,4 @@
+import os
 import re
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
@@ -18,15 +19,6 @@ def autolink(text):
     return Markup(URL_RE.sub(replace, text))
 
 
-def file_uri(path):
-    """Gibt absoluten Pfad als file://-URI zurück, relativen Pfad unverändert."""
-    if not path:
-        return path
-    p = Path(path)
-    if p.is_absolute():
-        return p.as_uri()  # → file:///absoluter/pfad/foto.jpg
-    return path
-
 
 class HtmlExporter:
     def __init__(self, html_dir):
@@ -39,6 +31,17 @@ class HtmlExporter:
             autoescape=True,
         )
         env.filters["autolink"] = autolink
+
+        html_dir = self.html_dir
+        def file_uri(path):
+            """Gibt relativen Pfad vom HTML-Ordner zum Medium zurück."""
+            if not path:
+                return path
+            p = Path(path)
+            if p.is_absolute():
+                return os.path.relpath(p, html_dir)
+            return path
+
         env.filters["file_uri"] = file_uri
         template = env.get_template("chat.html")
         html = template.render(chat_name=chat_name, messages=messages)
