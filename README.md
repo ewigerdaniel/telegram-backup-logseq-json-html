@@ -4,7 +4,13 @@ Dieses Tool sichert Telegram-Chats, Kanäle und Gruppen lokal als JSON, HTML und
 
 ## Was es tut
 
-Das Skript verbindet sich über die offizielle Telegram-API mit deinem Account und lädt Nachrichten sowie Medien (Fotos, Sprachnachrichten, Dokumente, Sticker) herunter. Videos und Musik werden nicht heruntergeladen — stattdessen wird ein direkter Telegram-Link gespeichert.
+Das Skript verbindet sich über die offizielle Telegram-API mit deinem Account und lädt Nachrichten sowie Medien herunter. Was heruntergeladen wird, ist konfigurierbar:
+
+- **Fotos und Sprachnachrichten** werden immer heruntergeladen
+- **Dokumente, Sticker** werden heruntergeladen wenn sie kleiner als `MAX_DOWNLOAD_SIZE_MB` sind (Standard: 1 MB) — größere Dateien werden verlinkt
+- **Videos und Musik** werden standardmäßig nicht heruntergeladen — stattdessen wird ein direkter Telegram-Link gespeichert
+
+Alle drei Einstellungen lassen sich in `config.py` anpassen. Wer alles herunterladen möchte (inkl. Videos, ohne Größenlimit), setzt `SKIP_MEDIA_TYPES = []` und `MAX_DOWNLOAD_SIZE_MB = None`.
 
 Jeder Backup-Lauf ist **inkrementell**: es werden nur neue Nachrichten seit dem letzten Lauf geholt, nichts wird doppelt gespeichert.
 
