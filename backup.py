@@ -4,6 +4,7 @@
 import argparse
 import asyncio
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -379,6 +380,28 @@ async def main(export_formats, list_chats=False):
     print(f"\nBackup abgeschlossen. {backed_up} Chat(s) verarbeitet.")
 
 
+LOCK_FILE = Path(config.BACKUP_DIR) / ".backup.lock"
+
+
+def acquire_lock():
+    """Gibt True zurück wenn der Lock erfolgreich gesetzt wurde, sonst False."""
+    if LOCK_FILE.exists():
+        pid = LOCK_FILE.read_text().strip()
+        # Prüfen ob der Prozess noch läuft
+        try:
+            os.kill(int(pid), 0)
+            return False  # Prozess läuft noch
+        except (ProcessLookupError, ValueError):
+            pass  # Prozess existiert nicht mehr — veralteter Lock
+    LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    LOCK_FILE.write_text(str(os.getpid()))
+    return True
+
+
+def release_lock():
+    LOCK_FILE.unlink(missing_ok=True)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Telegram-Backup")
     parser.add_argument(
@@ -396,8 +419,15 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    if not args.list:
+        if not acquire_lock():
+            print("Backup läuft bereits. Abbruch.")
+            sys.exit(0)
+
     try:
         asyncio.run(main(args.export, args.list))
     except KeyboardInterrupt:
         print("\nAbgebrochen.")
-        sys.exit(0)
+    finally:
+        if not args.list:
+            release_lock()
