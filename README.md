@@ -28,7 +28,7 @@ backups/
 ├── html/
 │   └── 1234567890_Ralf/
 │       └── index.html             # Browsbare HTML-Ansicht
-└── logseq-telegram/               # Kann direkt in logseq geöffnet werden
+└── logseq-telegram/               # Kann direkt in Logseq geöffnet werden
     ├── journals/
     │   └── 2024_03_21.md
     ├── pages/
@@ -41,6 +41,10 @@ backups/
                 ├── documents/     # Dokumente
                 └── stickers/      # Sticker
 ```
+
+**Wichtig:** Die HTML-Dateien verwenden relative Pfade zu den Medien in `logseq-telegram/assets/`.
+`html/` und `logseq-telegram/` müssen daher immer zusammen unter demselben `BACKUP_DIR` liegen.
+Werden sie getrennt verschoben, funktionieren Bilder und Sprachnachrichten in der HTML-Ansicht nicht mehr.
 
 ---
 
