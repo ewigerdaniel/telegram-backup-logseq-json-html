@@ -8,7 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Activate venv (required before running anything)
 source .venv/bin/activate
 
-# List all available Telegram chats with IDs
+# First-time setup: fetch all chats and write them commented into WHITELIST in config.py
+python setup_whitelist.py
+
+# List all available Telegram chats with IDs (manual alternative to setup_whitelist.py)
 python backup.py --list
 
 # Run full backup (formats from config.py)
