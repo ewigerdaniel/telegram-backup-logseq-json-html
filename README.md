@@ -1,60 +1,18 @@
 # Telegram Backup
 
-Dieses Tool sichert Telegram-Chats, Kanäle und Gruppen lokal als JSON, HTML und Logseq-Journal.
-
-## Was es tut
-
-Das Skript verbindet sich über die offizielle Telegram-API mit deinem Account und lädt Nachrichten sowie Medien herunter. Was heruntergeladen wird, ist konfigurierbar:
-
-- **Fotos und Sprachnachrichten** werden immer heruntergeladen
-- **Dokumente, Sticker** werden heruntergeladen wenn sie kleiner als `MAX_DOWNLOAD_SIZE_MB` sind (Standard: 1 MB) — größere Dateien werden verlinkt
-- **Videos und Musik** werden standardmäßig nicht heruntergeladen — stattdessen wird ein direkter Telegram-Link gespeichert
-
-Alle drei Einstellungen lassen sich in `config.py` anpassen. Wer alles herunterladen möchte (inkl. Videos, ohne Größenlimit), setzt `SKIP_MEDIA_TYPES = []` und `MAX_DOWNLOAD_SIZE_MB = None`.
-
-Jeder Backup-Lauf ist **inkrementell**: es werden nur neue Nachrichten seit dem letzten Lauf geholt, nichts wird doppelt gespeichert.
-
-Die gesicherten Daten werden in drei Formaten ausgegeben:
-- **JSON** — maschinenlesbare Rohdaten, Basis für alle anderen Formate
-- **HTML** — browsbare Ansicht ähnlich dem nativen Telegram-Export, mit klickbaren Links und Medienvorschau
-- **Logseq** — Journal-Einträge pro Tag, Teilnehmer als verlinkte Pages; optional direkt in einen bestehenden Logseq-Graphen schreiben
-
-Über `LOGSEQ_JOURNAL_DIR`, `LOGSEQ_PAGES_DIR` und `LOGSEQ_ASSETS_DIR` in `config.py` kann das Tool direkt in einen laufenden Logseq-Graphen schreiben — Nachrichten landen dann sofort im Tagesjournal, Medien im Assets-Ordner. Ohne diese Einstellung werden alle Daten nach `backups/logseq-telegram/` geschrieben, das als eigenständiger Graph geöffnet oder mit `merge_to_logseq.py` in einen bestehenden Graphen übertragen werden kann.
-
-
-## Ausgabestruktur
-
-```
-backups/
-├── json/
-│   └── 1234567890_Ralf/
-│       ├── messages.json          # Alle Nachrichten als JSON (Rohdaten)
-│       ├── state.json             # Letzter gesicherter Stand (inkrementell)
-│       └── .logseq_manifest.json  # Bereits nach Logseq exportierte Nachrichten-IDs
-├── html/
-│   └── 1234567890_Ralf/
-│       └── index.html             # Browsbare HTML-Ansicht
-└── logseq-telegram/               # Kann direkt in Logseq geöffnet werden
-    ├── journals/
-    │   └── 2024_03_21.md
-    ├── pages/
-    │   └── Ralf @ralf_tg.md
-    └── assets/
-        └── 1234567890_Ralf/
-            └── media/
-                ├── photos/        # Fotos (.jpg)
-                ├── voice/         # Sprachnachrichten (.ogg)
-                ├── documents/     # Dokumente
-                └── stickers/      # Sticker
-```
-
-**Wichtig:** Die HTML-Dateien verwenden relative Pfade zu den Medien in `logseq-telegram/assets/`.
-`html/` und `logseq-telegram/` müssen daher immer zusammen unter demselben `BACKUP_DIR` liegen.
-Werden sie getrennt verschoben, funktionieren Bilder und Sprachnachrichten in der HTML-Ansicht nicht mehr.
+Sichert Telegram-Chats, Kanäle und Gruppen lokal als JSON, HTML und Logseq-Journal.
+Jeder Lauf ist inkrementell — es werden nur neue Nachrichten seit dem letzten Mal geholt.
 
 ---
 
-## Setup
+## Voraussetzungen
+
+- Python 3.10 oder neuer
+- Ein Telegram-Account (kein Bot — das Tool meldet sich als dein normaler Account an)
+
+---
+
+## Einrichtung (einmalig)
 
 ### 1. Virtuelle Umgebung einrichten
 
@@ -64,198 +22,153 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. API-Zugangsdaten holen
+### 2. API-Zugangsdaten bei Telegram holen
 
-1. Auf [my.telegram.org](https://my.telegram.org) anmelden
-2. → **API development tools** → App erstellen
-3. `api_id` und `api_hash` kopieren
+1. Im Browser auf [my.telegram.org](https://my.telegram.org) einloggen
+2. **API development tools** anklicken
+3. Eine App anlegen (Name und Plattform sind egal, z. B. "Backup")
+4. `api_id` (Zahl) und `api_hash` (langer String) notieren
 
-### 3. `.env` anlegen
+### 3. `.env`-Datei anlegen
 
 ```bash
 cp .env.example .env
-nano .env
 ```
 
+Die Datei mit einem Texteditor öffnen und ausfüllen:
+
 ```env
-TELEGRAM_API_ID=12345678           # von my.telegram.org
-TELEGRAM_API_HASH=abcdef...        # von my.telegram.org
+TELEGRAM_API_ID=12345678           # deine api_id von my.telegram.org
+TELEGRAM_API_HASH=abcdef...        # dein api_hash von my.telegram.org
 TELEGRAM_PHONE=+49123456789        # deine Telefonnummer mit Ländervorwahl
 ```
 
-### 4. `config.py` anpassen
+### 4. Chats auflisten und IDs eintragen
 
-```python
-BACKUP_DIR = "backups"   # Zielordner für alle Ausgaben (relativ zum Projektordner)
-
-# Optional: Logseq-Pfade direkt auf einen bestehenden Graphen zeigen lassen
-# None = Ausgabe nach backups/logseq-telegram/ (Standard)
-LOGSEQ_JOURNAL_DIR = None   # z.B. "/home/user/logseq/journals"
-LOGSEQ_PAGES_DIR   = None   # z.B. "/home/user/logseq/pages"
-LOGSEQ_ASSETS_DIR  = None   # z.B. "/home/user/logseq/assets"
-```
-
-### 5. Chats auflisten und IDs in `config.py` eintragen
+Beim ersten Start meldet sich das Tool bei Telegram an.
+Telegram schickt dir einen **Bestätigungscode** per SMS oder in die Telegram-App.
+Diesen Code einfach ins Terminal eingeben, wenn er abgefragt wird.
 
 ```bash
+source .venv/bin/activate   # falls noch nicht aktiv
 python backup.py --list
 ```
 
-Beim ersten Start fragt Telethon nach dem Bestätigungscode (per SMS oder Telegram-App).
-Die Session wird in `session/` gespeichert — danach kein erneuter Login nötig.
-
----
-
-## Befehle
-
-### Alle konfigurierten Chats sichern
-
-```bash
-python backup.py
-```
-
-Nutzt die Exportformate aus `config.py` (`EXPORT_FORMATS`).
-
----
-
-### Nur bestimmte Formate exportieren
-
-```bash
-python backup.py --export html
-python backup.py --export logseq
-python backup.py --export html logseq
-```
-
-| Format | Ausgabe |
-|--------|---------|
-| JSON | `backups/json/{id}_{name}/messages.json` (immer, kein Flag nötig) |
-| `html` | `backups/html/{id}_{name}/index.html` |
-| `logseq` | `backups/logseq-telegram/` (oder direkt in `LOGSEQ_*`-Pfade wenn gesetzt) |
-
----
-
-### Verfügbare Chats auflisten
-
-```bash
-python backup.py --list
-```
+Die Ausgabe sieht so aus:
 
 ```
 Verfügbare Chats (ID · Name):
   1234567890  ·  Ralf
-  987654321   ·  Familiengruppe  ✓ Whitelist
-  111222333   ·  Spam-Kanal      ✗ Blacklist
+  987654321   ·  Familiengruppe
+  111222333   ·  Spam-Kanal
 ```
 
-Die IDs werden in `config.py` unter `WHITELIST` / `BLACKLIST` eingetragen.
+Die gewünschten IDs in `config.py` unter `WHITELIST` eintragen:
+
+```python
+WHITELIST: list[int] = [
+    1234567890,  # Ralf
+    987654321,   # Familiengruppe
+]
+```
+
+Leer lassen bedeutet: alle Chats sichern (außer Blacklist).
+
+Die Session wird in `session/` gespeichert — der Login-Code wird nur beim allerersten Start abgefragt.
 
 ---
 
-### Logseq neu generieren (nach Ordner-Löschung o.ä.)
+## Tägliche Nutzung
 
 ```bash
-rm backups/json/{id}_{name}/.logseq_manifest.json
-python backup.py --export logseq
+source .venv/bin/activate   # venv aktivieren (nach jedem Neustart nötig)
+python backup.py            # alle konfigurierten Chats sichern
 ```
 
-Das Manifest verhindert Duplikate — ohne es werden alle Nachrichten neu exportiert.
+Das war's. Das Tool holt nur neue Nachrichten seit dem letzten Lauf und aktualisiert HTML und Logseq-Journal automatisch.
+
+### Nur bestimmte Formate exportieren
+
+```bash
+python backup.py --export html          # nur HTML
+python backup.py --export logseq        # nur Logseq
+python backup.py --export html logseq   # beide (Standard)
+```
+
+JSON wird immer geschrieben — es ist die Datenbasis für alle anderen Formate.
 
 ---
 
-## Alle Einstellungen auf einen Blick
+## Ausgabestruktur
 
-| Variable | Standard | Bedeutung |
-|----------|----------|-----------|
-| `BACKUP_DIR` | `"backups"` | Zielordner für alle Ausgaben |
-| `WHITELIST` | `[]` | Nur diese Chat-IDs sichern (leer = alle) |
-| `BLACKLIST` | `[]` | Diese Chat-IDs immer überspringen |
-| `SKIP_MEDIA_TYPES` | `["video", "audio"]` | Medientypen ohne Download (Telegram-Link statt Datei) |
-| `MAX_DOWNLOAD_SIZE_MB` | `1` | Maximale Dateigröße für Downloads in MB (gilt für Dokumente/Audio/Sticker; `None` = kein Limit) |
-| `EXPORT_FORMATS` | `["html", "logseq"]` | Aktive Exportformate |
-| `LOGSEQ_DATE_FORMAT` | `"%Y_%m_%d"` | Dateinamensformat für Journal-Einträge |
-| `LOGSEQ_JOURNAL_DIR` | `None` | Logseq-Journals-Pfad (None = `backups/logseq-telegram/journals`) |
-| `LOGSEQ_PAGES_DIR` | `None` | Logseq-Pages-Pfad (None = `backups/logseq-telegram/pages`) |
-| `LOGSEQ_ASSETS_DIR` | `None` | Logseq-Assets-Pfad (None = `backups/logseq-telegram/assets`) |
+```
+backups/
+├── json/
+│   └── 1234567890_Ralf/
+│       ├── messages.json          # alle Nachrichten als Rohdaten
+│       ├── state.json             # Fortschritt (für inkrementelle Backups)
+│       └── .logseq_manifest.json  # bereits exportierte Nachrichten-IDs
+├── html/
+│   └── 1234567890_Ralf/
+│       └── index.html             # browsbare Ansicht im Browser
+└── logseq-telegram/
+    ├── journals/
+    │   └── 2024_03_21.md
+    ├── pages/
+    │   └── Ralf @ralf_tg.md
+    └── assets/
+        └── 1234567890_Ralf/
+            └── media/
+                ├── photos/
+                ├── voice/
+                ├── documents/
+                └── stickers/
+```
 
-IDs für Whitelist/Blacklist ermitteln: `python backup.py --list`
+> **Hinweis:** Die HTML-Dateien verlinken Medien über relative Pfade nach `logseq-telegram/assets/`.
+> Die Ordner `html/` und `logseq-telegram/` müssen daher immer gemeinsam unter demselben `BACKUP_DIR` bleiben.
 
 ---
 
 ## Konfiguration (`config.py`)
 
-### Chat-Auswahl
+| Variable | Standard | Bedeutung |
+|----------|----------|-----------|
+| `BACKUP_DIR` | `"backups"` | Zielordner für alle Ausgaben |
+| `WHITELIST` | `[]` | Nur diese Chat-IDs sichern — leer bedeutet alle |
+| `BLACKLIST` | `[]` | Diese Chat-IDs immer überspringen |
+| `EXPORT_FORMATS` | `["html", "logseq"]` | Standardmäßig aktive Exportformate |
+| `SKIP_MEDIA_TYPES` | `["video", "audio"]` | Für diese Typen wird nur ein Telegram-Link gespeichert, kein Download |
+| `MAX_DOWNLOAD_SIZE_MB` | `1` | Maximale Dateigröße für Downloads in MB (`None` = kein Limit) |
+| `LOGSEQ_DATE_FORMAT` | `"%Y_%m_%d"` | Dateinamen-Format für Journal-Einträge |
+| `LOGSEQ_JOURNAL_DIR` | `None` | Pfad zum Logseq-Journals-Ordner (siehe Logseq-Integration) |
+| `LOGSEQ_PAGES_DIR` | `None` | Pfad zum Logseq-Pages-Ordner |
+| `LOGSEQ_ASSETS_DIR` | `None` | Pfad zum Logseq-Assets-Ordner |
 
-IDs werden mit `python backup.py --list` ermittelt.
+### Medien-Einstellungen
 
-```python
-# Nur diese Chats sichern (leer = alle, minus Blacklist)
-WHITELIST: list[int] = [
-    1234567890,  # Name des Chats
-]
+Standardmäßig werden Fotos und Sprachnachrichten immer heruntergeladen, Videos und Musik nur verlinkt.
 
-# Diese Chats immer überspringen
-BLACKLIST: list[int] = [
-    111222333,   # Name des Chats
-]
-```
-
-**Logik:**
-- Blacklist wird immer zuerst geprüft — ein Chat in der Blacklist wird nie gesichert
-- Whitelist leer → alle Chats werden gesichert (Blacklist greift)
-- Whitelist gefüllt → nur die gelisteten Chats werden gesichert
-
-### Medien
-
-```python
-# Für diese Typen wird kein Download durchgeführt.
-# Stattdessen wird der Telegram-Link gespeichert.
-SKIP_MEDIA_TYPES = ["video", "audio"]
-```
-
-| Typ | Standardverhalten | Unterordner |
-|-----|-------------------|-------------|
+| Typ | Standard | Unterordner |
+|-----|----------|-------------|
 | Fotos | Download | `media/photos/` |
 | Sprachnachrichten | Download | `media/voice/` |
 | Dokumente / PDFs | Download wenn ≤ `MAX_DOWNLOAD_SIZE_MB` | `media/documents/` |
 | Sticker | Download wenn ≤ `MAX_DOWNLOAD_SIZE_MB` | `media/stickers/` |
-| Videos | **kein Download** → Telegram-Link | — |
-| Musik / Audio | **kein Download** → Telegram-Link | — |
+| Videos | nur Telegram-Link | — |
+| Musik / Audio | nur Telegram-Link | — |
 
-Für nicht heruntergeladene Medien wird der direkte Telegram-Link zur Originalnachricht gespeichert.
-Bei weitergeleiteten Nachrichten zeigt der Link auf die Originalquelle.
-Für private 1:1-Chats ohne öffentliche URL wird kein Link gespeichert.
-
-**Alles herunterladen (inkl. Videos, ohne Größenlimit):**
+Alles herunterladen (inkl. Videos, ohne Größenlimit):
 ```python
 SKIP_MEDIA_TYPES = []
 MAX_DOWNLOAD_SIZE_MB = None
-```
-
-### Exportformate
-
-```python
-# Standardmäßig aktive Formate (überschreibbar per --export)
-EXPORT_FORMATS = ["html", "logseq"]
-```
-
-### Logseq
-
-```python
-# Dateinamen-Format für Journal-Einträge (Standard Logseq: %Y_%m_%d)
-LOGSEQ_DATE_FORMAT = "%Y_%m_%d"   # → 2024_03_21.md
-
-# Optional: direkt in einen externen Logseq-Graphen schreiben
-# None = Standard-Ausgabe nach backups/logseq-telegram/
-LOGSEQ_JOURNAL_DIR = None   # z.B. "/absoluter/pfad/logseq/journals"
-LOGSEQ_PAGES_DIR   = None   # z.B. "/absoluter/pfad/logseq/pages"
-LOGSEQ_ASSETS_DIR  = None   # z.B. "/absoluter/pfad/logseq/assets"
 ```
 
 ---
 
 ## Logseq-Integration
 
-Jede Nachricht wird als Block ins Tagesjournal eingetragen:
+Jede Nachricht landet als Block im Tagesjournal:
 
 ```markdown
 - [[Telegram]] [[Ralf @ralf_tg]] #telegram-backup
@@ -264,59 +177,82 @@ Jede Nachricht wird als Block ins Tagesjournal eingetragen:
     - 🖼 ![](../../assets/1234567890_Ralf/media/photos/12345.jpg)
   - 14:32 [[Ralf @ralf_tg]]: Schau mal das Video
     - 🎥 [Telegram-Link](https://t.me/c/.../12346)
-  - 14:33 [[Ralf @ralf_tg]]: Antwort
-    - ↩ Antwort auf Nachricht 185078
 ```
 
-**Seitennamen:** Teilnehmer werden als `Rufname @username` angelegt — Chat-Header und
-Sender-Links nutzen dasselbe Format, sodass nur eine Page pro Person entsteht.
+Für jeden Teilnehmer wird automatisch eine Page angelegt (`Rufname @username`). Bestehende Pages werden nie überschrieben.
 
-Teilnehmer-Pages werden nur neu angelegt, wenn sie noch nicht existieren — bestehende
-Pages werden nie überschrieben.
+### Modus A — direkt in einen bestehenden Graphen schreiben
 
----
-
-## In den Logseq-Hauptgraphen übertragen
-
-Wenn `LOGSEQ_JOURNAL_DIR` / `LOGSEQ_PAGES_DIR` nicht direkt gesetzt sind (Standard),
-kann `merge_to_logseq.py` die Daten aus `backups/logseq-telegram/` in einen bestehenden
-Graphen übertragen.
+In `config.py` die Pfade zum eigenen Logseq-Graphen eintragen:
 
 ```python
-# config.py — Ziel-Graph setzen:
-LOGSEQ_JOURNAL_DIR = "/pfad/zum/graphen/journals"
-LOGSEQ_PAGES_DIR   = "/pfad/zum/graphen/pages"
+LOGSEQ_JOURNAL_DIR = "/home/user/logseq/journals"
+LOGSEQ_PAGES_DIR   = "/home/user/logseq/pages"
+LOGSEQ_ASSETS_DIR  = "/home/user/logseq/assets"
 ```
 
-### Vorschau (nichts wird geschrieben)
+Ab sofort schreibt jeder Backup-Lauf direkt in diesen Graphen.
+
+### Modus B — nachträglich übertragen mit `merge_to_logseq.py`
+
+Ohne gesetzte Pfade landet alles in `backups/logseq-telegram/`. Dieser Ordner kann als eigener Logseq-Graph geöffnet oder mit folgendem Befehl in einen bestehenden Graphen übertragen werden:
 
 ```bash
+# Vorschau — nichts wird geschrieben:
 python merge_to_logseq.py --dry-run
-```
 
-### Übertragen
-
-```bash
+# Übertragen:
 python merge_to_logseq.py
 ```
 
-**Sicherheitsgarantien:**
-- Journal-Einträge werden nur **angehängt**, nie überschrieben
-- Pages werden nur neu angelegt, wenn sie noch **nicht existieren**
-- Bereits übertragene Inhalte werden **nicht doppelt** eingefügt (Manifest in `backups/_merge_manifest.json`)
+Dazu müssen `LOGSEQ_JOURNAL_DIR` und `LOGSEQ_PAGES_DIR` in `config.py` gesetzt sein (LOGSEQ_ASSETS_DIR ist für merge nicht nötig).
+
+**Sicherheitsgarantien beider Modi:**
+- Journal-Einträge werden nur angehängt, nie überschrieben
+- Pages werden nur neu angelegt, wenn sie noch nicht existieren
+- Bereits übertragene Inhalte werden nicht doppelt eingefügt
 
 ---
 
-## Tipps
+## Automatischer Cron-Job
 
-**venv nach Neustart aktivieren:**
+```bash
+crontab -e
+```
+
+Täglich um 3 Uhr morgens sichern:
+
+```
+0 3 * * * cd /pfad/zum/projekt && .venv/bin/python backup.py
+```
+
+---
+
+## Logseq-Export zurücksetzen
+
+Falls der Logseq-Export neu generiert werden soll (z. B. nach manueller Löschung):
+
+```bash
+rm backups/json/{id}_{name}/.logseq_manifest.json
+python backup.py --export logseq
+```
+
+Das Manifest verhindert Duplikate — ohne es werden alle gespeicherten Nachrichten neu exportiert.
+
+---
+
+## Fehlerbehebung
+
+**`ModuleNotFoundError`** — venv ist nicht aktiviert:
 ```bash
 source .venv/bin/activate
 ```
 
-**Backup automatisch ausführen (Cron-Job):**
+**`KeyError: 'TELEGRAM_API_ID'`** — `.env`-Datei fehlt oder ist unvollständig. Prüfen ob die Datei existiert und alle drei Werte eingetragen sind.
+
+**`Backup läuft bereits.`** — Es läuft noch ein anderer Backup-Prozess, oder ein voriger Lauf wurde unsauber beendet. Lock-Datei manuell entfernen:
 ```bash
-crontab -e
-# Täglich um 3 Uhr:
-0 3 * * * cd /pfad/zum/projekt && .venv/bin/python backup.py
+rm backups/.backup.lock
 ```
+
+**Login-Code wird nicht angefragt beim zweiten Start** — Das ist normal. Die Session wird in `session/` gespeichert und wiederverwendet.
