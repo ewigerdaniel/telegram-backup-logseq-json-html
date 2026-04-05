@@ -43,36 +43,28 @@ TELEGRAM_API_HASH=abcdef...        # dein api_hash von my.telegram.org
 TELEGRAM_PHONE=+49123456789        # deine Telefonnummer mit Ländervorwahl
 ```
 
-### 4. Chats auflisten und IDs eintragen
-
-Beim ersten Start meldet sich das Tool bei Telegram an.
-Telegram schickt dir einen **Bestätigungscode** per SMS oder in die Telegram-App.
-Diesen Code einfach ins Terminal eingeben, wenn er abgefragt wird.
+### 4. Chats in `config.py` eintragen
 
 ```bash
 source .venv/bin/activate   # falls noch nicht aktiv
-python backup.py --list
+python setup_whitelist.py
 ```
 
-Die Ausgabe sieht so aus:
+Beim allerersten Start meldet sich das Tool bei Telegram an.
+Telegram schickt dir einen **Bestätigungscode** per SMS oder in die Telegram-App — einfach ins Terminal eingeben.
 
-```
-Verfügbare Chats (ID · Name):
-  1234567890  ·  Ralf
-  987654321   ·  Familiengruppe
-  111222333   ·  Spam-Kanal
-```
-
-Die gewünschten IDs in `config.py` unter `WHITELIST` eintragen:
+Das Skript listet alle verfügbaren Chats auf und trägt sie **kommentiert** in die `WHITELIST` ein:
 
 ```python
 WHITELIST: list[int] = [
-    1234567890,  # Ralf
-    987654321,   # Familiengruppe
+    # 1234567890,  # Ralf
+    # 987654321,   # Familiengruppe
+    # 111222333,   # Spam-Kanal
 ]
 ```
 
-Leer lassen bedeutet: alle Chats sichern (außer Blacklist).
+Danach `config.py` öffnen und das `#` vor den Chats entfernen, die gesichert werden sollen.
+Leer lassen (alles auskommentiert) bedeutet: alle Chats sichern (außer Blacklist).
 
 Die Session wird in `session/` gespeichert — der Login-Code wird nur beim allerersten Start abgefragt.
 
